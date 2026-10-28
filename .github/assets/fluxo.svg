@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 230" width="1200" height="230" role="img" aria-label="Escreva no WhatsApp → aperte Ctrl+Shift+Espaço → confira a prévia e aperte Enter → a mensagem fica corrigida">
+<style>
+  .serif{font-family:Georgia,'Times New Roman',serif}
+  .sans{font-family:'Segoe UI',Inter,Helvetica,Arial,sans-serif}
+  .mono{font-family:'JetBrains Mono',Consolas,'Courier New',monospace}
+  @keyframes desenhar{0%{stroke-dashoffset:860}70%,100%{stroke-dashoffset:0}}
+  @keyframes acender{0%,100%{fill:#FBFAF6;stroke:#CFC7B6}8%,22%{fill:#DCEBE7;stroke:#0F6E64}30%{fill:#FBFAF6;stroke:#CFC7B6}}
+  @keyframes numero{0%,100%{fill:#8A8378}8%,22%{fill:#0F6E64}30%{fill:#8A8378}}
+  @keyframes pulo{0%,100%{transform:none}10%{transform:translateY(-6px)}20%{transform:none}}
+  .linha{stroke-dasharray:860;stroke-dashoffset:860;animation:desenhar 6s ease-in-out infinite}
+  .passo .cartao{animation:acender 6s ease infinite}
+  .passo .n{animation:numero 6s ease infinite}
+  .passo .icone{transform-box:fill-box;transform-origin:center;animation:pulo 6s ease infinite}
+  .p1 .cartao,.p1 .n,.p1 .icone{animation-delay:0s}
+  .p2 .cartao,.p2 .n,.p2 .icone{animation-delay:1.3s}
+  .p3 .cartao,.p3 .n,.p3 .icone{animation-delay:2.6s}
+  .p4 .cartao,.p4 .n,.p4 .icone{animation-delay:3.9s}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important}.linha{stroke-dashoffset:0}}
+</style>
+<rect width="1200" height="230" rx="18" fill="#F4F1EA"/>
+<path class="linha" d="M195 98 H1005" stroke="#0F6E64" stroke-width="2" stroke-dasharray="6 6" fill="none"/>
+<path d="M195 98 H1005" stroke="#CFC7B6" stroke-width="2" stroke-dasharray="2 8" fill="none" opacity=".6"/>
+
+<g class="passo p1">
+  <rect class="cartao" x="60" y="40" width="250" height="116" rx="16" fill="#FBFAF6" stroke="#CFC7B6" stroke-width="1.5"/>
+  <text class="mono n" x="84" y="70" font-size="12" letter-spacing="3">01</text>
+  <g class="icone"><rect x="230" y="56" width="52" height="34" rx="8" fill="#1C1A17"/><path d="M240 82 l-4 10 l12 -6 z" fill="#1C1A17"/><path d="M240 68h24M240 77h14" stroke="#F4F1EA" stroke-width="2.5" stroke-linecap="round"/></g>
+  <text class="serif" x="84" y="112" font-size="22" fill="#1C1A17">Escreva</text>
+  <text class="sans" x="84" y="138" font-size="14" fill="#57524A">no WhatsApp, como sempre</text>
+</g>
+<g class="passo p2">
+  <rect class="cartao" x="340" y="40" width="250" height="116" rx="16" fill="#FBFAF6" stroke="#CFC7B6" stroke-width="1.5"/>
+  <text class="mono n" x="364" y="70" font-size="12" letter-spacing="3">02</text>
+  <g class="icone"><rect x="484" y="58" width="40" height="28" rx="6" fill="#FBFAF6" stroke="#1C1A17" stroke-width="1.5"/><text class="mono" x="504" y="77" text-anchor="middle" font-size="11" fill="#1C1A17">Ctrl</text><rect x="530" y="58" width="44" height="28" rx="6" fill="#FBFAF6" stroke="#1C1A17" stroke-width="1.5"/><text class="mono" x="552" y="77" text-anchor="middle" font-size="11" fill="#1C1A17">Shift</text></g>
+  <text class="serif" x="364" y="112" font-size="22" fill="#1C1A17">Aperte o atalho</text>
+  <text class="sans" x="364" y="138" font-size="14" fill="#57524A">Ctrl + Shift + Espaço</text>
+</g>
+<g class="passo p3">
+  <rect class="cartao" x="620" y="40" width="250" height="116" rx="16" fill="#FBFAF6" stroke="#CFC7B6" stroke-width="1.5"/>
+  <text class="mono n" x="644" y="70" font-size="12" letter-spacing="3">03</text>
+  <g class="icone"><rect x="784" y="54" width="62" height="40" rx="7" fill="#FBFAF6" stroke="#1C1A17" stroke-width="1.5"/><path d="M793 67h14" stroke="#C8412B" stroke-width="2"/><path d="M811 67h22" stroke="#0F6E64" stroke-width="3" stroke-linecap="round"/><rect x="793" y="78" width="24" height="9" rx="3" fill="#1C1A17"/></g>
+  <text class="serif" x="644" y="112" font-size="22" fill="#1C1A17">Confira a prévia</text>
+  <text class="sans" x="644" y="138" font-size="14" fill="#57524A">Enter aplica, Esc cancela</text>
+</g>
+<g class="passo p4">
+  <rect class="cartao" x="900" y="40" width="250" height="116" rx="16" fill="#FBFAF6" stroke="#CFC7B6" stroke-width="1.5"/>
+  <text class="mono n" x="924" y="70" font-size="12" letter-spacing="3">04</text>
+  <g class="icone"><circle cx="1104" cy="74" r="20" fill="#0F6E64"/><path d="M1095 74 l6 6 l12 -13" stroke="#F4F1EA" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <text class="serif" x="924" y="112" font-size="22" fill="#1C1A17">Pronto</text>
+  <text class="sans" x="924" y="138" font-size="14" fill="#57524A">corrigida na própria caixa</text>
+</g>
+<text class="sans" x="600" y="200" text-anchor="middle" font-size="13" fill="#8A8378">Nada sai do seu computador: o corretor roda local, sem internet e sem conta.</text>
+</svg>

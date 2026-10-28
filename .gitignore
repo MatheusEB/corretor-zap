@@ -1,0 +1,13 @@
+# dependências e builds
+frontend/node_modules/
+frontend/dist/
+backend/target/
+backend/src/main/resources/static/
+dist/
+
+# configuração de ferramentas e editores
+frontend/.21st/
+.idea/
+.vscode/
+*.iml
+.playwright-cli/
