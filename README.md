@@ -18,6 +18,8 @@
 Corretor de ortografia e pontuação para o WhatsApp Desktop e Web: escreva a mensagem,
 aperte `Ctrl + Shift + Espaço` e confira a prévia antes de enviar. Roda inteiro no seu computador.
 
+<a href="https://github.com/MatheusEB/corretor-zap/releases/latest"><img src="https://img.shields.io/badge/Baixar_para_Windows-CorretorZap--windows.zip-0F6E64?style=for-the-badge&logo=windows&logoColor=FBFAF6" alt="Baixar para Windows"></a>
+
 </div>
 
 ---
@@ -140,7 +142,15 @@ corretor-zap/
 
 </details>
 
-## Rodar na sua máquina
+## Instalar
+
+1. Baixe o **`CorretorZap-windows.zip`** na [última versão](https://github.com/MatheusEB/corretor-zap/releases/latest).
+2. Extraia a pasta onde quiser e abra **`Corretor Zap.exe`**. O Java já vem dentro.
+
+> [!NOTE]
+> O executável não tem assinatura digital, então o Windows pode mostrar "O Windows protegeu o computador". Clique em **Mais informações** e depois em **Executar assim mesmo**.
+
+## Rodar a partir do código
 
 Precisa de **JDK 21+** e **Node 20.19+** (ou 22.12+).
 
