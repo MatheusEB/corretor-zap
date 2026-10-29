@@ -9,13 +9,14 @@ import { teclasDoAtalho } from '@/lib/atalho'
 import { definirTema, usarTema, type PreferenciaTema } from '@/lib/tema'
 import { cn } from '@/lib/utils'
 
-export type Pagina = 'inicio' | 'atalho' | 'dicionario' | 'historico'
+export type Pagina = 'inicio' | 'atalho' | 'dicionario' | 'historico' | 'ia'
 
 export const PAGINAS: { id: Pagina; nome: string }[] = [
   { id: 'inicio', nome: 'Início' },
   { id: 'atalho', nome: 'Atalho' },
   { id: 'dicionario', nome: 'Dicionário' },
   { id: 'historico', nome: 'Histórico' },
+  { id: 'ia', nome: 'IA' },
 ]
 
 const TEMAS: { id: PreferenciaTema; nome: string; Icone: typeof SunIcon }[] = [
@@ -122,7 +123,7 @@ export function BarraLateral({ atual, irPara, config, status, alternarAtivo }: P
               </button>
             ))}
           </div>
-          <span className="font-mono text-[10px] text-apagado">v0.1</span>
+          <span className="font-mono text-[10px] text-apagado">v0.2</span>
         </div>
       </div>
     </aside>

@@ -74,7 +74,10 @@ export function NotasMargem({
                     <p className="truncate text-[15px]">
                       <Troca correcao={c} />
                     </p>
-                    <p className="mt-0.5 truncate text-xs text-apagado">{c.descricaoRegra}</p>
+                    <p className="mt-0.5 truncate text-xs text-apagado">
+                      {c.descricaoRegra}
+                      {c.certeza ? null : ' · confira'}
+                    </p>
                   </div>
                   <div className="flex gap-0.5 opacity-60 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
                     <Button size="icon-xs" variant="ghost" aria-label={`Aceitar ${c.sugestao}`} onClick={() => aceitar(c)}>

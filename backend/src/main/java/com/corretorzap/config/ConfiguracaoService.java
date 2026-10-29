@@ -2,10 +2,8 @@ package com.corretorzap.config;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.TreeSet;
 
 import org.slf4j.Logger;
@@ -20,7 +18,6 @@ import tools.jackson.databind.ObjectMapper;
 public class ConfiguracaoService {
 
 	private static final Logger log = LoggerFactory.getLogger(ConfiguracaoService.class);
-	private static final int TENTATIVAS_AO_SALVAR = 10;
 
 	private final Path arquivo;
 	private final ObjectMapper mapper;
@@ -38,36 +35,12 @@ public class ConfiguracaoService {
 
 	public synchronized Configuracao salvar(Configuracao nova) {
 		try {
-			Files.createDirectories(arquivo.getParent());
-			Path temporario = arquivo.resolveSibling("config.json.tmp");
-			Files.writeString(temporario, mapper.writerWithDefaultPrettyPrinter().writeValueAsString(nova));
-			substituir(temporario);
+			Arquivos.gravar(arquivo, mapper.writerWithDefaultPrettyPrinter().writeValueAsString(nova));
 		} catch (IOException e) {
 			throw new UncheckedIOException("Não foi possível salvar " + arquivo, e);
 		}
 		atual = nova;
 		return nova;
-	}
-
-	// No Windows, antivírus e indexador abrem o arquivo por alguns milissegundos logo depois de cada gravação;
-	// enquanto isso a troca falha com AccessDeniedException. Tenta de novo com espera crescente.
-	private void substituir(Path temporario) throws IOException {
-		for (int tentativa = 1;; tentativa++) {
-			try {
-				Files.move(temporario, arquivo, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-				return;
-			} catch (AccessDeniedException e) {
-				if (tentativa == TENTATIVAS_AO_SALVAR) {
-					throw e;
-				}
-				try {
-					Thread.sleep(15L * tentativa);
-				} catch (InterruptedException interrompido) {
-					Thread.currentThread().interrupt();
-					throw e;
-				}
-			}
-		}
 	}
 
 	public synchronized Configuracao adicionarPalavra(String palavra) {

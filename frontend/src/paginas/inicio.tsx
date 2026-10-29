@@ -7,7 +7,7 @@ import { NotasMargem } from '@/components/notas-margem'
 import { Tecla } from '@/components/tecla'
 import { api, type Atualizar, type Configuracao, type Correcao } from '@/lib/api'
 import { teclasDoAtalho } from '@/lib/atalho'
-import { aplicarCorrecao, aplicarTodas, correcoesValidas } from '@/lib/correcoes'
+import { aplicarCorrecao, correcoesValidas } from '@/lib/correcoes'
 import { usarCorrecaoAoVivo } from '@/lib/usar-correcao-ao-vivo'
 
 const EXEMPLO = 'voce nao vai acreditar oque aconteceu hoje, to rindo ate agora'
@@ -45,11 +45,15 @@ export function PaginaInicio({ config, atualizar }: Props) {
     atualizar(() => api.salvarConfig({ ...config, regrasDesativadas: [...config.regrasDesativadas, c.regra] }))
   }
 
+  // só as que têm certeza; as duvidosas continuam marcadas para a pessoa decidir uma a uma
   const aplicarTudo = () => {
-    if (correcoes.length === 0) return
-    const novo = aplicarTodas(texto, correcoes)
-    setTexto(novo)
-    aoVivo.definir({ texto: novo, correcoes: [] })
+    const certas = correcoes.filter((c) => c.certeza)
+    if (certas.length === 0) return
+    let r = { texto, correcoes }
+    // de trás pra frente, aplicar uma não mexe na posição das anteriores
+    for (const c of certas.toSorted((a, b) => b.inicio - a.inicio)) r = aplicarCorrecao(r.texto, r.correcoes, c)
+    setTexto(r.texto)
+    aoVivo.definir(r)
     setAtiva(null)
   }
 
@@ -143,7 +147,7 @@ function usarSessao() {
           const deHoje = registros.filter((r) => new Date(r.quando).toDateString() === hoje)
           setSessao({
             mensagens: deHoje.length,
-            correcoes: deHoje.reduce((soma, r) => soma + r.correcoes.length, 0),
+            correcoes: deHoje.reduce((soma, r) => soma + r.correcoes.filter((c) => c.certeza).length, 0),
           })
         })
         .catch(() => {})

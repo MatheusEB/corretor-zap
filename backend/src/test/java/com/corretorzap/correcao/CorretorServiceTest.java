@@ -39,6 +39,33 @@ class CorretorServiceTest {
 	}
 
 	@Test
+	void escolheASugestaoMaisParecidaComOQueFoiDigitado() {
+		// a primeira sugestão do LanguageTool para "voces" é "Bosses"
+		ResultadoCorrecao resultado = corretor.corrigir("e voces vem que horas");
+
+		assertThat(resultado.correcoes()).filteredOn(c -> c.trecho().equals("voces"))
+				.singleElement().extracting(Correcao::sugestao).isEqualTo("vocês");
+	}
+
+	@Test
+	void sugestaoDuvidosaNaoEntraNoTextoCorrigido() {
+		// nenhuma sugestão do LanguageTool para "amanah" é "amanhã"; a primeira seria "Ananás"
+		ResultadoCorrecao resultado = corretor.corrigir("eu vou amanah cedo");
+
+		assertThat(resultado.corrigido()).isEqualTo("Eu vou amanah cedo.");
+		assertThat(resultado.correcoes()).filteredOn(c -> c.trecho().equals("amanah"))
+				.singleElement().extracting(Correcao::certeza).isEqualTo(false);
+	}
+
+	@Test
+	void comecaFrase() {
+		assertThat(CorretorService.comecaFrase("Joao veio", 0)).isTrue();
+		assertThat(CorretorService.comecaFrase("oi. Joao veio", 4)).isTrue();
+		assertThat(CorretorService.comecaFrase("oi\n  Joao veio", 5)).isTrue();
+		assertThat(CorretorService.comecaFrase("falei com Joao", 10)).isFalse();
+	}
+
+	@Test
 	void naoMexeEmTextoCorreto() {
 		ResultadoCorrecao resultado = corretor.corrigir("Você não vai acreditar no que aconteceu.");
 

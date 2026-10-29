@@ -21,11 +21,11 @@ import org.springframework.stereotype.Component;
 
 import com.corretorzap.config.Configuracao;
 import com.corretorzap.config.ConfiguracaoService;
-import com.corretorzap.correcao.CorretorService;
 import com.corretorzap.correcao.HistoricoService;
 import com.corretorzap.correcao.ResultadoCorrecao;
 import com.corretorzap.desktop.AppDesktop;
 import com.corretorzap.desktop.Windows;
+import com.corretorzap.ia.RevisorIa;
 import com.github.kwhat.jnativehook.GlobalScreen;
 import com.github.kwhat.jnativehook.NativeHookException;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
@@ -43,7 +43,7 @@ public class AtalhoGlobal implements NativeKeyListener, SmartLifecycle {
 	private static final Logger log = LoggerFactory.getLogger(AtalhoGlobal.class);
 
 	private final ConfiguracaoService configuracao;
-	private final CorretorService corretor;
+	private final RevisorIa corretor;
 	private final HistoricoService historico;
 	private final ObjectProvider<AppDesktop> appDesktop;
 
@@ -62,7 +62,7 @@ public class AtalhoGlobal implements NativeKeyListener, SmartLifecycle {
 	private volatile Atalho atalho;
 	private AreaDeTrabalho areaDeTrabalho;
 
-	public AtalhoGlobal(ConfiguracaoService configuracao, CorretorService corretor, HistoricoService historico,
+	public AtalhoGlobal(ConfiguracaoService configuracao, RevisorIa corretor, HistoricoService historico,
 			ObjectProvider<AppDesktop> appDesktop) {
 		this.configuracao = configuracao;
 		this.corretor = corretor;

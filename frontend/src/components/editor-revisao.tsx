@@ -165,7 +165,10 @@ export function EditorRevisao({
             className="absolute z-20 rounded-lg border border-linha-forte bg-folha p-4 shadow-[0_24px_48px_-24px_color-mix(in_oklab,var(--tinta)_55%,transparent)]"
             style={{ top: posicao.top, left: posicao.left, width: LARGURA_CARTAO }}
           >
-            <p className="font-mono text-[10px] tracking-[0.16em] text-apagado uppercase">{aberta.descricaoRegra}</p>
+            <p className="font-mono text-[10px] tracking-[0.16em] text-apagado uppercase">
+              {aberta.descricaoRegra}
+              {aberta.certeza ? null : ' · confira'}
+            </p>
             <p className="mt-2 flex items-baseline gap-2.5">
               <del className="text-base text-apagado decoration-vermelhao">{aberta.trecho}</del>
               <span className="text-apagado" aria-hidden>

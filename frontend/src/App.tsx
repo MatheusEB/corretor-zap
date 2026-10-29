@@ -12,6 +12,7 @@ import { api, type Atualizar, type Configuracao, type Status } from '@/lib/api'
 import { PaginaAtalho } from '@/paginas/atalho'
 import { PaginaDicionario } from '@/paginas/dicionario'
 import { PaginaHistorico } from '@/paginas/historico'
+import { PaginaIa } from '@/paginas/ia'
 import { PaginaInicio } from '@/paginas/inicio'
 
 export default function App() {
@@ -32,7 +33,7 @@ export default function App() {
 
   useEffect(carregar, [carregar])
 
-  // Ctrl+1..4 troca de seção, como num app de desktop
+  // Ctrl+1..5 troca de seção, como num app de desktop
   useEffect(() => {
     const aoTeclar = (e: KeyboardEvent) => {
       if (!e.ctrlKey || e.shiftKey || e.altKey) return
@@ -87,8 +88,10 @@ export default function App() {
                   <PaginaAtalho config={config} atualizar={atualizar} />
                 ) : pagina === 'dicionario' ? (
                   <PaginaDicionario config={config} atualizar={atualizar} />
-                ) : (
+                ) : pagina === 'historico' ? (
                   <PaginaHistorico config={config} />
+                ) : (
+                  <PaginaIa />
                 )}
               </motion.div>
             </AnimatePresence>

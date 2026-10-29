@@ -121,6 +121,7 @@ public class CorretorService {
 
 		StringBuilder corrigido = new StringBuilder(texto);
 		List<Correcao> correcoes = new ArrayList<>();
+		List<Correcao> duvidosas = new ArrayList<>();
 		int limite = texto.length();
 		// de trás pra frente, para as posições do texto original continuarem válidas
 		for (int i = achados.size() - 1; i >= 0; i--) {
@@ -129,6 +130,17 @@ public class CorretorService {
 				continue;
 			}
 			String sugestao = achado.sugestoes().getFirst();
+			if (ehOrtografia(achado)) {
+				String digitado = texto.substring(achado.inicio(), achado.fim());
+				Ranqueador.Escolha escolha = Ranqueador.escolher(digitado, achado.sugestoes(), comecaFrase(texto, achado.inicio()));
+				sugestao = escolha.sugestao();
+				if (!escolha.certeza()) {
+					// não entra no texto corrigido; vira só uma sugestão que a pessoa pode aceitar na prévia
+					duvidosas.add(new Correcao(achado.inicio(), achado.fim(), digitado, sugestao, achado.mensagem(),
+							achado.regra(), achado.descricaoRegra(), false));
+					continue;
+				}
+			}
 			if (inicioDeFrase.contains(achado.inicio()) && !sugestao.isEmpty()) {
 				sugestao = Character.toUpperCase(sugestao.charAt(0)) + sugestao.substring(1);
 			}
@@ -146,11 +158,39 @@ public class CorretorService {
 
 		List<Pontuador.Insercao> insercoes = comInstancia(instancia ->
 				new Pontuador(cfg.regrasDesativadas(), instancia::etiquetas).pontuar(corrigido.toString()));
-		if (insercoes.isEmpty()) {
-			return new ResultadoCorrecao(texto, corrigido.toString(), correcoes);
+		List<Correcao> todas = insercoes.isEmpty() ? correcoes : incorporarPontuacao(texto, correcoes, insercoes);
+		return ResultadoCorrecao.aplicando(texto, comDuvidosas(todas, duvidosas));
+	}
+
+	/**
+	 * Junta as sugestões duvidosas às correções. Se uma delas cai em cima de outra correção (a vírgula ou o ponto
+	 * que a pontuação pôs depois da mesma palavra), fica só a outra: não dá para aceitar metade de uma troca.
+	 */
+	static List<Correcao> comDuvidosas(List<Correcao> correcoes, List<Correcao> duvidosas) {
+		if (duvidosas.isEmpty()) {
+			return correcoes;
 		}
-		List<Correcao> todas = incorporarPontuacao(texto, correcoes, insercoes);
-		return new ResultadoCorrecao(texto, aplicar(texto, todas), todas);
+		List<Correcao> resultado = new ArrayList<>(correcoes);
+		for (Correcao d : duvidosas) {
+			if (correcoes.stream().noneMatch(c -> c.inicio() < d.fim() && d.inicio() < c.fim())) {
+				resultado.add(d);
+			}
+		}
+		resultado.sort(Comparator.comparingInt(Correcao::inicio));
+		return resultado;
+	}
+
+	private static boolean ehOrtografia(Achado achado) {
+		return achado.tipo() == ITSIssueType.Misspelling && achado.regra().startsWith("MORFOLOGIK");
+	}
+
+	/** A palavra que começa em {@code posicao} abre uma frase (início do texto, de linha ou depois de . ! ?). */
+	static boolean comecaFrase(String texto, int posicao) {
+		int i = posicao - 1;
+		while (i >= 0 && texto.charAt(i) != '\n' && Character.isWhitespace(texto.charAt(i))) {
+			i--;
+		}
+		return i < 0 || ".!?\n".indexOf(texto.charAt(i)) >= 0;
 	}
 
 	private record Troca(int inicio, int fim, String certo) {
@@ -291,15 +331,6 @@ public class CorretorService {
 	private static String ajustar(String palavra, Pontuador.Insercao insercao) {
 		String base = insercao.maiuscula() ? Character.toUpperCase(palavra.charAt(0)) + palavra.substring(1) : palavra;
 		return base + insercao.sinal();
-	}
-
-	private static String aplicar(String texto, List<Correcao> correcoes) {
-		StringBuilder resultado = new StringBuilder(texto);
-		for (int i = correcoes.size() - 1; i >= 0; i--) {
-			Correcao c = correcoes.get(i);
-			resultado.replace(c.inicio(), c.fim(), c.sugestao());
-		}
-		return resultado.toString();
 	}
 
 	private List<Achado> verificar(String texto, Set<String> regrasDesativadas) {

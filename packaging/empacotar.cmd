@@ -12,7 +12,7 @@ popd
 
 echo [2/4] Backend Spring Boot (com testes)
 pushd backend
-call .\mvnw.cmd -q package || exit /b 1
+call .\mvnw.cmd -q clean package || exit /b 1
 popd
 
 echo [3/4] jpackage
@@ -21,7 +21,7 @@ mkdir dist\entrada
 copy /y backend\target\corretor-zap-0.0.1-SNAPSHOT.jar dist\entrada\corretor-zap.jar >nul
 jpackage --type app-image ^
   --name "Corretor Zap" ^
-  --app-version 0.1.0 ^
+  --app-version 0.2.0 ^
   --vendor "Corretor Zap" ^
   --description "Correcao ortografica com um atalho, direto no WhatsApp" ^
   --icon packaging\icone.ico ^

@@ -37,7 +37,8 @@ export default function Previa() {
     window.mostrarPrevia = (novos) => {
       document.documentElement.classList.toggle('dark', novos.escuro)
       setDados(novos)
-      setRejeitadas(new Set())
+      // as duvidosas chegam desmarcadas: um clique aplica
+      setRejeitadas(new Set(novos.resultado.correcoes.flatMap((c, i) => (c.certeza ? [] : [i]))))
       setRodada((r) => r + 1)
     }
     return () => {
@@ -117,6 +118,11 @@ export default function Previa() {
           <header className="flex items-center gap-2.5 border-b border-linha px-4 pt-3.5 pb-3">
             <Logo className="size-6" />
             <p className="font-serif text-[1.35rem] leading-none">Prévia</p>
+            {correcoes.some((c) => c.regra === 'CZ_IA') ? (
+              <span className="rounded-[4px] bg-teal-suave px-1.5 py-0.5 font-mono text-[10px] tracking-[0.12em] text-teal uppercase">
+                IA
+              </span>
+            ) : null}
             <p className="ml-auto font-mono text-[10px] tracking-[0.16em] text-apagado uppercase tabular-nums">
               {aceitas.length} de {correcoes.length} {correcoes.length === 1 ? 'correção' : 'correções'}
             </p>
@@ -175,7 +181,13 @@ function Marca({ correcao, aceita, atraso, alternar }: PropsMarca) {
       type="button"
       onClick={alternar}
       aria-pressed={aceita}
-      title={aceita ? `${correcao.descricaoRegra}: clique para manter o original` : 'Clique para corrigir de novo'}
+      title={
+        aceita
+          ? `${correcao.descricaoRegra}: clique para manter o original`
+          : correcao.certeza
+            ? 'Clique para corrigir de novo'
+            : `Talvez “${correcao.sugestao}”? Clique para corrigir`
+      }
       className={cn(
         '-mx-0.5 rounded-[4px] px-0.5 align-baseline transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
         aceita ? 'hover:bg-teal-suave/70' : 'underline decoration-linha-forte decoration-dashed underline-offset-4 hover:bg-secondary',

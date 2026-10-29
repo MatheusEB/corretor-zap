@@ -9,14 +9,14 @@
 ![React](https://img.shields.io/badge/React-18-1C1A17?style=for-the-badge&logo=react&logoColor=FBFAF6)
 ![LanguageTool](https://img.shields.io/badge/LanguageTool-pt--BR-1C1A17?style=for-the-badge&logoColor=FBFAF6)
 <br>
-![Versão](https://img.shields.io/badge/versão-0.1.0-0F6E64?style=flat-square)
-![Testes](https://img.shields.io/badge/testes-59-0F6E64?style=flat-square)
+![Versão](https://img.shields.io/badge/versão-0.2.0-0F6E64?style=flat-square)
+![Testes](https://img.shields.io/badge/testes-100-0F6E64?style=flat-square)
 ![Licença](https://img.shields.io/badge/licença-MIT-0F6E64?style=flat-square)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-C8412B?style=flat-square&logo=windows)
 
 **Escreveu, apertou, corrigiu.**
 Corretor de ortografia e pontuação para o WhatsApp Desktop e Web: escreva a mensagem,
-aperte `Ctrl + Shift + Espaço` e confira a prévia antes de enviar. Roda inteiro no seu computador.
+aperte `Ctrl + Shift + Espaço` e confira a prévia antes de enviar. Roda inteiro no seu computador (a revisão por IA é opcional).
 
 <a href="https://github.com/MatheusEB/corretor-zap/releases/latest"><img src="https://img.shields.io/badge/Baixar_para_Windows-CorretorZap--windows.zip-0F6E64?style=for-the-badge&logo=windows&logoColor=FBFAF6" alt="Baixar para Windows"></a>
 
@@ -52,7 +52,7 @@ aperte `Ctrl + Shift + Espaço` e confira a prévia antes de enviar. Roda inteir
 <td width="50%" valign="top">
 
 ### ✏️ Ortografia e acentos
-O [LanguageTool](https://languagetool.org) em português do Brasil, ajustado para conversa: `voce` → `você`, `nao` → `não`, `porisso` → `por isso`, sem "corrigir" risada nem gíria.
+O [LanguageTool](https://languagetool.org) em português do Brasil, ajustado para conversa: `voce` → `você`, `nao` → `não`, `porisso` → `por isso`, sem "corrigir" risada nem gíria. Entre as sugestões, o `Ranqueador` escolhe a mais parecida com o erro (acento esquecido, tecla vizinha, `chatu` → `chato`) e, na dúvida, só sugere: a prévia mostra desmarcada.
 
 ### 🔤 Pontuação de chat
 Uma camada própria (`Pontuador`) põe vírgula depois de saudação e vocativo (`oi joao tudo bem` → `Oi, João, tudo bem?`), ponto final e interrogação. Cada tipo liga e desliga na página Atalho.
@@ -70,7 +70,7 @@ Janela própria com o painel em React, ícone na bandeja (Abrir, Pausar, Sair) e
 O visual imita uma folha corrigida à caneta: sublinhado ondulado ao vivo, marcações numeradas na margem, teclas 3D que afundam com as de verdade. Tema claro e escuro, sem gradiente nem brilho.
 
 ### 🔒 Fica no seu computador
-Nada vai para a internet. O servidor só aceita a própria máquina (`127.0.0.1`), bloqueia pedidos de outros sites e o histórico fica em `~/.corretor-zap`.
+Nada vai para a internet, a menos que você ligue a **revisão por IA** (página IA: Gemini grátis, Ollama local ou qualquer API compatível com a da OpenAI). O servidor só aceita a própria máquina (`127.0.0.1`), bloqueia pedidos de outros sites e o histórico fica em `~/.corretor-zap`.
 
 </td>
 </tr>
@@ -111,6 +111,7 @@ graph LR
 ```
 
 - **`correcao`** junta o LanguageTool (ortografia e acentos) com o `Pontuador` (vírgulas e fim de frase) e filtra o que não faz sentido em chat.
+- **`ia`** (opcional) manda a mensagem do atalho para a IA configurada e transforma a resposta em correções separadas; se a IA falhar, o corretor local assume.
 - **`atalho`** escuta o atalho global e lê/escreve a caixa em foco com `Ctrl+A`, `Ctrl+C` e `Ctrl+V` simulados, guardando a área de transferência antes.
 - **`desktop`** abre o painel numa janela nativa (JavaFX WebView) e a prévia numa janela transparente por cima do WhatsApp, com JNA para o foco das janelas no Windows.
 - **`frontend`** é compilado para dentro do jar (`backend/src/main/resources/static`), então o app é um único executável.
@@ -128,6 +129,7 @@ corretor-zap/
 │       ├── correcao/        LanguageTool, Pontuador e histórico
 │       ├── demo/            dados de demonstração
 │       ├── desktop/         janela, bandeja, prévia flutuante, Windows (JNA)
+│       ├── ia/              revisão opcional por IA (Gemini, Ollama, OpenAI-compatível)
 │       ├── seguranca/       filtro que só aceita a própria máquina
 │       └── web/             CORS e cabeçalhos de segurança
 ├── frontend/                React + TypeScript + Vite + Tailwind + shadcn
@@ -179,7 +181,7 @@ cd backend
 ./mvnw test
 ```
 
-São **59 testes** (JUnit 5): correção, pontuação (33 casos de mensagens reais), API, atalho, dicionário, concorrência e o filtro de segurança.
+São **100 testes** (JUnit 5): correção, escolha de sugestões, pontuação (33 casos de mensagens reais), revisão por IA (com um servidor falso), API, atalho, dicionário, concorrência e o filtro de segurança.
 
 Com o app aberto, os testes de `testes-carga/` medem o resto:
 

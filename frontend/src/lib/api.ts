@@ -15,6 +15,8 @@ export type Correcao = {
   mensagem: string
   regra: string
   descricaoRegra: string
+  /** false = sugestão duvidosa: não entra no texto corrigido e a prévia mostra desmarcada */
+  certeza: boolean
 }
 
 export type ResultadoCorrecao = {
@@ -28,6 +30,13 @@ export type RegistroHistorico = ResultadoCorrecao & { quando: string }
 export type Status = { atalhoRegistrado: boolean }
 
 export type Sistema = { instalado: boolean; iniciarComWindows: boolean }
+
+export type ConfiguracaoIa = { ativo: boolean; provedor: string; url: string; modelo: string; chaveDefinida: boolean }
+
+/** `chave` ausente mantém a salva; string vazia apaga. */
+export type PedidoIa = Omit<ConfiguracaoIa, 'chaveDefinida'> & { chave?: string }
+
+export type ResultadoTesteIa = { resultado: ResultadoCorrecao; milissegundos: number }
 
 async function chamar<T>(metodo: string, caminho: string, corpo?: unknown, signal?: AbortSignal): Promise<T> {
   const resposta = await fetch(`/api${caminho}`, {
@@ -57,6 +66,9 @@ export const api = {
   limparHistorico: () => chamar<null>('DELETE', '/historico'),
   sistema: () => chamar<Sistema>('GET', '/sistema'),
   salvarSistema: (iniciarComWindows: boolean) => chamar<Sistema>('PUT', '/sistema', { iniciarComWindows }),
+  ia: () => chamar<ConfiguracaoIa>('GET', '/ia'),
+  salvarIa: (pedido: PedidoIa) => chamar<ConfiguracaoIa>('PUT', '/ia', pedido),
+  testarIa: (texto: string) => chamar<ResultadoTesteIa>('POST', '/ia/testar', { texto }),
 }
 
 /** Aplica uma alteração na config; devolve false (e avisa o usuário) se o servidor recusar. */
