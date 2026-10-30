@@ -45,10 +45,32 @@ public class ClienteIa {
 			risadas (kkkk, rs, haha), emojis, nomes, links, números e quebras de linha exatamente como estão.
 			Não acrescente nem tire frases, não responda à mensagem e não explique nada.
 			Devolva apenas a mensagem revisada, sem aspas. Se não houver nada a corrigir, devolva a mensagem igual.""";
+	/** Ajuste de tom pedido na prévia: aqui reescrever é o objetivo, então as palavras podem mudar. */
+	public enum Tom {
+		FORMAL("Reescreva a mensagem num tom mais formal e educado, adequado para trabalho."),
+		CURTO("Reescreva a mensagem de forma mais curta e direta, sem perder nenhuma informação."),
+		GENTIL("Reescreva a mensagem num tom mais gentil e simpático, sem exagerar.");
+
+		private final String pedido;
+
+		Tom(String pedido) {
+			this.pedido = pedido;
+		}
+	}
+
+	static final String INSTRUCOES_TOM = """
+			Você ajusta mensagens de WhatsApp escritas em português do Brasil.
+			%s
+			Corrija também ortografia, acentuação e pontuação. Mantenha nomes, links, números, emojis e o idioma.
+			Não responda à mensagem e não explique nada. Devolva apenas a mensagem reescrita, sem aspas.""";
 	private static final int MAXIMO_PALAVRAS_PROTEGIDAS = 300;
-	/** Quem apertou o atalho está esperando; depois disso o corretor local assume. */
+	/** Tempo máximo de um pedido; a prévia já está na tela com o corretor local enquanto isso. */
 	private static final Duration ESPERA = Duration.ofSeconds(10);
 	private static final Duration ESPERA_ANTES_DE_REPETIR = Duration.ofMillis(400);
+	/** Depois disso não vale repetir um 503: a pessoa já está há tempo demais com o selo "revisando". */
+	private static final Duration LIMITE_PARA_REPETIR = Duration.ofSeconds(3);
+	/** O HttpClient fecha a conexão parada; não adianta pré-aquecer mais vezes que isso. */
+	private static final long INTERVALO_PREAQUECER_NS = Duration.ofSeconds(20).toNanos();
 	private static final String RACIOCINIO_GEMINI = "minimal";
 
 	private final ObjectMapper mapper;
@@ -56,6 +78,7 @@ public class ClienteIa {
 			.connectTimeout(Duration.ofSeconds(5))
 			.followRedirects(HttpClient.Redirect.NEVER)
 			.build();
+	private volatile long ultimoPreaquecimento = System.nanoTime() - INTERVALO_PREAQUECER_NS;
 
 	public ClienteIa(ObjectMapper mapper) {
 		this.mapper = mapper;
@@ -78,11 +101,46 @@ public class ClienteIa {
 	 * @return a mensagem revisada, como a IA devolveu (sem limpeza)
 	 */
 	public String revisar(ConfiguracaoIa cfg, String texto, Set<String> protegidas) {
-		String instrucoes = INSTRUCOES;
-		if (!protegidas.isEmpty()) {
-			instrucoes += "\nNunca altere estas palavras: "
-					+ protegidas.stream().limit(MAXIMO_PALAVRAS_PROTEGIDAS).collect(Collectors.joining(", ")) + ".";
+		return pedir(cfg, comProtegidas(INSTRUCOES, protegidas), texto);
+	}
+
+	/** @return a mensagem reescrita no tom pedido, como a IA devolveu (sem limpeza) */
+	public String reescrever(ConfiguracaoIa cfg, String texto, Tom tom, Set<String> protegidas) {
+		return pedir(cfg, comProtegidas(INSTRUCOES_TOM.formatted(tom.pedido), protegidas), texto);
+	}
+
+	/**
+	 * Abre a conexão com o provedor sem esperar (DNS + TCP + TLS custam 150–400 ms), para o pedido de verdade, que
+	 * sai logo depois do Ctrl+C, já encontrar a conexão pronta. Chamado quando o atalho é apertado.
+	 */
+	public void preaquecer(ConfiguracaoIa cfg) {
+		long agora = System.nanoTime();
+		if (!cfg.pronta() || agora - ultimoPreaquecimento < INTERVALO_PREAQUECER_NS) {
+			return;
 		}
+		ultimoPreaquecimento = agora;
+		HttpRequest.Builder pedido = HttpRequest.newBuilder(URI.create(cfg.url() + "models")).timeout(ESPERA).GET();
+		if (!cfg.chave().isEmpty()) {
+			pedido.header("Authorization", "Bearer " + cfg.chave());
+		}
+		try {
+			// a resposta não importa (nem o status): só a conexão aberta, que o HttpClient reaproveita
+			http.sendAsync(pedido.build(), HttpResponse.BodyHandlers.discarding()).exceptionally(e -> null);
+		} catch (RuntimeException e) {
+			// endereço inválido: o pedido de verdade vai mostrar o erro
+		}
+	}
+
+	private static String comProtegidas(String instrucoes, Set<String> protegidas) {
+		if (protegidas.isEmpty()) {
+			return instrucoes;
+		}
+		return instrucoes + "\nNunca altere estas palavras: "
+				+ protegidas.stream().limit(MAXIMO_PALAVRAS_PROTEGIDAS).collect(Collectors.joining(", ")) + ".";
+	}
+
+	private String pedir(ConfiguracaoIa cfg, String instrucoes, String texto) {
+		long inicio = System.nanoTime();
 		Map<String, Object> corpo = new LinkedHashMap<>();
 		corpo.put("model", cfg.modelo());
 		corpo.put("temperature", 0);
@@ -101,7 +159,7 @@ public class ClienteIa {
 			corpo.remove("reasoning_effort");
 			resposta = enviar(cfg, corpo);
 		}
-		if (resposta.statusCode() == 503) {
+		if (resposta.statusCode() == 503 && System.nanoTime() - inicio < LIMITE_PARA_REPETIR.toNanos()) {
 			// "high demand" no plano gratuito costuma passar na hora
 			esperar(ESPERA_ANTES_DE_REPETIR);
 			resposta = enviar(cfg, corpo);

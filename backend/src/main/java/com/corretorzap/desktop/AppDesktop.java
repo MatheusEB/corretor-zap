@@ -15,6 +15,7 @@ import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,14 +91,27 @@ public class AppDesktop {
 	/**
 	 * Mostra a prévia da correção perto do mouse e espera a decisão.
 	 *
-	 * @return o texto a colar, ou vazio se a pessoa cancelou
+	 * @param ia   estado da revisão da IA: "desligada", "revisando", "pronta" ou "falhou"
+	 * @param tons pede uma reescrita no tom; null esconde os botões de tom
+	 * @return o que a pessoa escolheu, ou vazio se ela cancelou
 	 */
-	public CompletableFuture<Optional<String>> previa(ResultadoCorrecao resultado) {
+	public CompletableFuture<Optional<Decisao>> previa(ResultadoCorrecao resultado, String ia,
+			Function<String, CompletableFuture<ResultadoCorrecao>> tons) {
 		PreviaFlutuante atual = previa;
 		if (atual == null) {
-			return CompletableFuture.completedFuture(Optional.of(resultado.corrigido()));
+			return CompletableFuture.completedFuture(resultado.mudou()
+					? Optional.of(new Decisao(resultado.corrigido(), resultado.correcoes(), null))
+					: Optional.empty());
 		}
-		return atual.mostrar(resultado, barraEscura);
+		return atual.mostrar(resultado, barraEscura, ia, tons);
+	}
+
+	/** A IA respondeu: troca o conteúdo da prévia que ainda está aberta. */
+	public void atualizarPrevia(CompletableFuture<Optional<Decisao>> aberta, ResultadoCorrecao resultado, String ia) {
+		PreviaFlutuante atual = previa;
+		if (atual != null) {
+			atual.atualizar(aberta, resultado, ia);
+		}
 	}
 
 	public void cancelarPrevia() {

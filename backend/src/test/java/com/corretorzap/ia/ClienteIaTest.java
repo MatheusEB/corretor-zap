@@ -28,6 +28,8 @@ class ClienteIaTest {
 	private final JsonMapper mapper = JsonMapper.builder().build();
 	private final ClienteIa cliente = new ClienteIa(mapper);
 	private final AtomicReference<String> caminho = new AtomicReference<>();
+	private final List<String> pedidos = new CopyOnWriteArrayList<>();
+	private volatile long atrasoMs;
 	private final AtomicReference<String> autorizacao = new AtomicReference<>();
 	private final AtomicReference<String> corpo = new AtomicReference<>();
 	private volatile int status = 200;
@@ -42,6 +44,14 @@ class ClienteIaTest {
 		servidor = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
 		servidor.createContext("/", troca -> {
 			caminho.set(troca.getRequestURI().getPath());
+			pedidos.add(troca.getRequestMethod() + " " + troca.getRequestURI().getPath());
+			if (atrasoMs > 0) {
+				try {
+					Thread.sleep(atrasoMs);
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+				}
+			}
 			autorizacao.set(troca.getRequestHeaders().getFirst("Authorization"));
 			corpo.set(new String(troca.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
 			corpos.add(corpo.get());
@@ -163,6 +173,108 @@ class ClienteIaTest {
 		ConfiguracaoIa.validarUrl("http://localhost:11434/v1/");
 		assertThatThrownBy(() -> ConfiguracaoIa.validarUrl("http://exemplo.com/v1/")).isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> ConfiguracaoIa.validarUrl("ftp://localhost/")).isInstanceOf(IllegalArgumentException.class);
+	}
+
+	@Test
+	void sobrecargaDepoisDoLimiteNaoRepete() {
+		// a resposta 503 já veio tarde: repetir deixaria a pessoa esperando o dobro
+		atrasoMs = 3200;
+		roteiro.add(new Object[] { 503, "{\"error\":{\"message\":\"high demand\"}}" });
+		roteiro.add(new Object[] { 200, OK });
+
+		assertThatThrownBy(() -> cliente.revisar(cfg("x"), "oi", Set.of())).hasMessageContaining("sobrecarregada");
+		assertThat(corpos).hasSize(1);
+	}
+
+	@Test
+	void preaquecerAbreAConexaoUmaVezSoEComAChave() throws Exception {
+		resposta = "{\"data\":[]}";
+
+		cliente.preaquecer(cfg("segredo"));
+		cliente.preaquecer(cfg("segredo"));
+		cliente.preaquecer(cfg("segredo"));
+
+		esperarAte(() -> !pedidos.isEmpty());
+		Thread.sleep(300);
+		assertThat(pedidos).containsExactly("GET /v1/models");
+		assertThat(autorizacao.get()).isEqualTo("Bearer segredo");
+	}
+
+	@Test
+	void preaquecerNaoFazNadaComAIaDesligadaNemQuebraComServidorFora() throws Exception {
+		ConfiguracaoIa desligada = new ConfiguracaoIa(false, "gemini", "http://127.0.0.1:" + servidor.getAddress().getPort() + "/v1",
+				"modelo-x", "x");
+		cliente.preaquecer(desligada);
+
+		ClienteIa outro = new ClienteIa(mapper);
+		outro.preaquecer(new ConfiguracaoIa(true, "x", "http://127.0.0.1:1/v1", "m", ""));
+
+		Thread.sleep(300);
+		assertThat(pedidos).isEmpty();
+	}
+
+	@Test
+	void preaquecerNaoAtrasaQuemChama() {
+		atrasoMs = 2000;
+		resposta = "{}";
+
+		long inicio = System.nanoTime();
+		cliente.preaquecer(cfg("x"));
+
+		assertThat((System.nanoTime() - inicio) / 1_000_000).isLessThan(500);
+	}
+
+	@Test
+	void reescreverPedeOTomEProtegeODicionario() {
+		resposta = OK;
+
+		cliente.reescrever(cfg("x"), "vc vem amanha?", ClienteIa.Tom.FORMAL, Set.of("zezinho"));
+
+		JsonNode pedido = mapper.readTree(corpo.get());
+		String instrucoes = pedido.get("messages").get(0).get("content").asString();
+		assertThat(instrucoes).contains("formal").contains("zezinho");
+		assertThat(pedido.get("messages").get(1).get("content").asString()).isEqualTo("vc vem amanha?");
+	}
+
+	@Test
+	void cadaTomTemUmPedidoDiferente() {
+		resposta = OK;
+
+		for (ClienteIa.Tom tom : ClienteIa.Tom.values()) {
+			cliente.reescrever(cfg("x"), "oi", tom, Set.of());
+		}
+
+		assertThat(corpos.stream().map(c -> mapper.readTree(c).get("messages").get(0).get("content").asString()).distinct())
+				.hasSize(ClienteIa.Tom.values().length);
+	}
+
+	@Test
+	void muitosPedidosEmParaleloNaoSeMisturam() {
+		servidor.removeContext("/");
+		servidor.createContext("/", troca -> {
+			JsonNode pedido = mapper.readTree(troca.getRequestBody().readAllBytes());
+			String eco = pedido.get("messages").get(1).get("content").asString();
+			byte[] bytes = ("{\"choices\":[{\"message\":{\"content\":\"" + eco.toUpperCase() + "\"}}]}")
+					.getBytes(StandardCharsets.UTF_8);
+			troca.sendResponseHeaders(200, bytes.length);
+			troca.getResponseBody().write(bytes);
+			troca.close();
+		});
+
+		java.util.stream.IntStream.range(0, 300).parallel().forEach(i -> {
+			String texto = "mensagem " + i;
+			assertThat(cliente.revisar(cfg("x"), texto, Set.of())).isEqualTo(texto.toUpperCase());
+		});
+	}
+
+	private static void esperarAte(java.util.function.BooleanSupplier condicao) throws InterruptedException {
+		long limite = System.nanoTime() + 5_000_000_000L;
+		while (!condicao.getAsBoolean()) {
+			if (System.nanoTime() > limite) {
+				throw new AssertionError("a condição não aconteceu em 5 s");
+			}
+			Thread.sleep(20);
+		}
 	}
 
 }

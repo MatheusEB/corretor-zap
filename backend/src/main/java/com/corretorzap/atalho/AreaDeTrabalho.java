@@ -17,14 +17,21 @@ import java.util.UUID;
 class AreaDeTrabalho {
 
 	private static final long ESPERA_COPIA_MS = 600;
-	private static final long ESPERA_COLAR_MS = 250;
+	// quanto esperar depois do Ctrl+V antes de restaurar o clipboard antigo: tempo para o app de destino ler a
+	// área de transferência. Não há sinal de que ele terminou, então é um valor fixo conservador. O texto já
+	// apareceu na tela quando essa espera começa, então ela não deixa nada mais lento para quem usa; com 120 ms
+	// o app que acabou de receber o foco de volta da prévia às vezes colava o clipboard antigo.
+	private static final long ESPERA_COLAR_MS = 500;
+	// atraso entre cada tecla simulada; some em todos os Ctrl+A/C/V. Baixo o bastante para ser rápido, alto o
+	// bastante para o app de destino não perder uma tecla.
+	private static final int ATRASO_TECLA_MS = 8;
 
 	private final Robot robot;
 	private final Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
 
 	AreaDeTrabalho() throws AWTException {
 		robot = new Robot();
-		robot.setAutoDelay(15);
+		robot.setAutoDelay(ATRASO_TECLA_MS);
 	}
 
 	/** Garante que os modificadores do atalho não "vazem" para os Ctrl+C/V simulados. */
@@ -59,7 +66,7 @@ class AreaDeTrabalho {
 
 		long limite = System.currentTimeMillis() + ESPERA_COPIA_MS;
 		while (System.currentTimeMillis() < limite) {
-			Thread.sleep(25);
+			Thread.sleep(10);
 			String atual = lerTexto();
 			if (atual != null && !atual.equals(marcador)) {
 				return atual;

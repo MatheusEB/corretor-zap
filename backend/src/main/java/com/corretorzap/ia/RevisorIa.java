@@ -1,8 +1,13 @@
 package com.corretorzap.ia;
 
 import java.text.Normalizer;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -17,6 +22,9 @@ import com.corretorzap.correcao.Correcao;
 import com.corretorzap.correcao.CorretorService;
 import com.corretorzap.correcao.ResultadoCorrecao;
 import com.corretorzap.ia.ClienteIa.FalhaIa;
+import com.corretorzap.ia.ClienteIa.Tom;
+
+import jakarta.annotation.PreDestroy;
 
 /**
  * Correção do atalho: com a IA ligada, ela revisa a mensagem; se a IA falhar (sem internet, limite do plano
@@ -34,10 +42,19 @@ public class RevisorIa {
 	private static final Pattern PALAVRA = Pattern.compile("[\\p{L}\\p{M}\\p{N}]+");
 	private static final Pattern BLOCO_DE_CODIGO = Pattern.compile("^```[\\w-]*\\R(.*?)\\R?```$", Pattern.DOTALL);
 
+	private static final int TAMANHO_CACHE = 64;
+
 	private final CorretorService corretor;
 	private final ConfiguracaoService configuracao;
 	private final ConfiguracaoIaService configuracaoIa;
 	private final ClienteIa cliente;
+	private final ExecutorService pedidos = Executors.newVirtualThreadPerTaskExecutor();
+	private final Map<String, ResultadoCorrecao> cache = new LinkedHashMap<>(16, 0.75f, true) {
+		@Override
+		protected boolean removeEldestEntry(Map.Entry<String, ResultadoCorrecao> maisAntigo) {
+			return size() > TAMANHO_CACHE;
+		}
+	};
 
 	public RevisorIa(CorretorService corretor, ConfiguracaoService configuracao, ConfiguracaoIaService configuracaoIa,
 			ClienteIa cliente) {
@@ -47,17 +64,87 @@ public class RevisorIa {
 		this.cliente = cliente;
 	}
 
+	/**
+	 * A correção em duas etapas da prévia: a local sai na hora e a da IA chega depois.
+	 *
+	 * @param local o resultado do corretor local (dezenas de ms)
+	 * @param ia    a revisão da IA, ou null se a IA está desligada ou a mensagem é longa demais; termina com
+	 *              {@link FalhaIa} se a IA falhar
+	 */
+	public record Etapas(ResultadoCorrecao local, CompletableFuture<ResultadoCorrecao> ia) {
+	}
+
 	public ResultadoCorrecao corrigir(String texto) {
 		ConfiguracaoIa ia = configuracaoIa.atual();
-		if (!ia.pronta() || texto.length() > MAXIMO_CARACTERES) {
+		if (!usaIa(ia, texto)) {
 			return corretor.corrigir(texto);
 		}
 		try {
-			return comIa(ia, texto);
+			return comIaEmCache(ia, texto);
 		} catch (FalhaIa e) {
 			log.warn("IA indisponível ({}); usando o corretor local", e.getMessage());
 			return corretor.corrigir(texto);
 		}
+	}
+
+	public Etapas corrigirEmEtapas(String texto) {
+		ConfiguracaoIa ia = configuracaoIa.atual();
+		if (!usaIa(ia, texto)) {
+			return new Etapas(corretor.corrigir(texto), null);
+		}
+		// a IA sai primeiro: o corretor local roda enquanto o pedido viaja
+		CompletableFuture<ResultadoCorrecao> revisao = CompletableFuture.supplyAsync(() -> comIaEmCache(ia, texto), pedidos);
+		return new Etapas(corretor.corrigir(texto), revisao);
+	}
+
+	/** Reescreve no tom pedido (botões da prévia). Aqui trocar palavras é o esperado, então não há trava. */
+	public ResultadoCorrecao reescrever(String texto, Tom tom) {
+		ConfiguracaoIa ia = configuracaoIa.atual();
+		if (!usaIa(ia, texto)) {
+			throw new FalhaIa("Ligue a IA no painel para ajustar o tom");
+		}
+		Configuracao cfg = configuracao.atual();
+		String reescrito = limpar(texto, cliente.reescrever(ia, texto, tom, cfg.dicionario()));
+		return ResultadoCorrecao.aplicando(texto, Diferencas.entre(texto, reescrito));
+	}
+
+	public CompletableFuture<ResultadoCorrecao> reescreverEmSegundoPlano(String texto, Tom tom) {
+		return CompletableFuture.supplyAsync(() -> reescrever(texto, tom), pedidos);
+	}
+
+	/** Abre a conexão com a IA enquanto o atalho ainda está sendo apertado. */
+	public void preaquecer() {
+		cliente.preaquecer(configuracaoIa.atual());
+	}
+
+	public boolean iaLigada() {
+		return configuracaoIa.atual().pronta();
+	}
+
+	@PreDestroy
+	void encerrar() {
+		pedidos.shutdownNow();
+	}
+
+	private static boolean usaIa(ConfiguracaoIa ia, String texto) {
+		return ia.pronta() && texto.length() <= MAXIMO_CARACTERES;
+	}
+
+	/** A mesma mensagem de novo (cancelou e apertou o atalho outra vez) não gasta cota nem espera. */
+	private ResultadoCorrecao comIaEmCache(ConfiguracaoIa ia, String texto) {
+		Configuracao cfg = configuracao.atual();
+		String chave = ia.url() + '\u0000' + ia.modelo() + '\u0000' + cfg.dicionario().hashCode() + '\u0000' + texto;
+		synchronized (cache) {
+			ResultadoCorrecao guardado = cache.get(chave);
+			if (guardado != null) {
+				return guardado;
+			}
+		}
+		ResultadoCorrecao resultado = comIa(ia, texto);
+		synchronized (cache) {
+			cache.put(chave, resultado);
+		}
+		return resultado;
 	}
 
 	/** Só a IA, sem plano B: o botão "Testar" do painel precisa ver o erro. */

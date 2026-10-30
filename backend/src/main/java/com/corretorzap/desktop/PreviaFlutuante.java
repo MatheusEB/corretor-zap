@@ -5,11 +5,14 @@ import java.awt.Point;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.corretorzap.correcao.ResultadoCorrecao;
+import com.corretorzap.ia.ClienteIa;
 
 import javafx.application.Platform;
 import javafx.concurrent.Worker;
@@ -23,6 +26,7 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import netscape.javascript.JSObject;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -42,7 +46,9 @@ public final class PreviaFlutuante {
 	private final Ponte ponte = new Ponte();
 	private boolean pronta;
 	private boolean posicionada;
-	private CompletableFuture<Optional<String>> decisao;
+	private CompletableFuture<Optional<Decisao>> decisao;
+	private Function<String, CompletableFuture<ResultadoCorrecao>> tons;
+	private long mostradaEm;
 
 	/** Deve ser criada na thread do JavaFX. */
 	PreviaFlutuante(String url, ObjectMapper mapper) {
@@ -76,9 +82,9 @@ public final class PreviaFlutuante {
 		cena.addEventFilter(KeyEvent.KEY_PRESSED, evento -> {
 			if (evento.getCode() == KeyCode.ENTER && !evento.isShiftDown()) {
 				evento.consume();
-				Object texto = web.getEngine().executeScript("window.textoDaPrevia ? window.textoDaPrevia() : null");
-				if (texto instanceof String textoFinal) {
-					decidir(Optional.of(textoFinal));
+				Object json = web.getEngine().executeScript("window.decisaoDaPrevia ? window.decisaoDaPrevia() : null");
+				if (json instanceof String decisaoJson) {
+					ponte.aplicar(decisaoJson);
 				}
 			} else if (evento.getCode() == KeyCode.ESCAPE) {
 				evento.consume();
@@ -97,38 +103,63 @@ public final class PreviaFlutuante {
 	/**
 	 * Mostra a prévia e espera a pessoa decidir.
 	 *
-	 * @return o texto a colar (só com as correções que ela manteve) ou vazio se cancelou
+	 * @param ia   estado da revisão da IA: "desligada", "revisando", "pronta" ou "falhou"
+	 * @param tons pede uma reescrita no tom ("FORMAL", "CURTO", "GENTIL"); null esconde os botões
+	 * @return o que ela escolheu, ou vazio se cancelou. O próprio futuro identifica esta prévia em
+	 *         {@link #atualizar}.
 	 */
-	CompletableFuture<Optional<String>> mostrar(ResultadoCorrecao resultado, boolean escuro) {
-		CompletableFuture<Optional<String>> futuro = new CompletableFuture<>();
+	CompletableFuture<Optional<Decisao>> mostrar(ResultadoCorrecao resultado, boolean escuro, String ia,
+			Function<String, CompletableFuture<ResultadoCorrecao>> tons) {
+		CompletableFuture<Optional<Decisao>> futuro = new CompletableFuture<>();
+		long pedidaEm = System.nanoTime();
 		Platform.runLater(() -> {
 			if (!pronta) {
 				log.warn("Prévia ainda carregando; corrigindo direto");
-				futuro.complete(Optional.of(resultado.corrigido()));
+				futuro.complete(resultado.mudou()
+						? Optional.of(new Decisao(resultado.corrigido(), resultado.correcoes(), null))
+						: Optional.empty());
 				return;
 			}
 			decidir(Optional.empty());
 			decisao = futuro;
+			this.tons = tons;
+			mostradaEm = pedidaEm;
 			posicionada = false;
-			String dados = mapper.writeValueAsString(Map.of("resultado", resultado, "escuro", escuro));
+			String dados = mapper.writeValueAsString(
+					Map.of("resultado", resultado, "escuro", escuro, "ia", ia, "tons", tons != null));
 			web.getEngine().executeScript("window.mostrarPrevia(" + dados + ")");
 		});
 		return futuro;
+	}
+
+	/**
+	 * Troca o conteúdo da prévia aberta (a IA respondeu). Não faz nada se a pessoa já decidiu ou se outra prévia
+	 * tomou o lugar desta.
+	 */
+	void atualizar(CompletableFuture<Optional<Decisao>> previa, ResultadoCorrecao resultado, String ia) {
+		Platform.runLater(() -> {
+			if (decisao != previa) {
+				return;
+			}
+			String dados = mapper.writeValueAsString(Map.of("resultado", resultado, "ia", ia));
+			web.getEngine().executeScript("window.atualizarPrevia(" + dados + ")");
+		});
 	}
 
 	void cancelar() {
 		Platform.runLater(() -> decidir(Optional.empty()));
 	}
 
-	private void decidir(Optional<String> texto) {
+	private void decidir(Optional<Decisao> escolha) {
 		if (decisao == null) {
 			return;
 		}
-		CompletableFuture<Optional<String>> atual = decisao;
+		CompletableFuture<Optional<Decisao>> atual = decisao;
 		decisao = null;
+		tons = null;
 		palco.hide();
-		log.info("Prévia: {}", texto.isPresent() ? "aplicada" : "cancelada");
-		atual.complete(texto);
+		log.info("Prévia: {}", escolha.isPresent() ? "aplicada" : "cancelada");
+		atual.complete(escolha);
 	}
 
 	private void abrirPerto(double largura, double altura) {
@@ -155,7 +186,8 @@ public final class PreviaFlutuante {
 		boolean comFoco = Windows.trazerParaFrente(TITULO);
 		web.requestFocus();
 		Platform.runLater(web::requestFocus);
-		log.info("Prévia aberta em ({}, {}), com foco: {}", (int) palco.getX(), (int) palco.getY(), comFoco);
+		log.info("Prévia aberta em ({}, {}) em {} ms, com foco: {}", (int) palco.getX(), (int) palco.getY(),
+				(System.nanoTime() - mostradaEm) / 1_000_000, comFoco);
 	}
 
 	/** Chamada pelo JavaScript da prévia (sempre na thread do JavaFX). */
@@ -167,14 +199,43 @@ public final class PreviaFlutuante {
 			}
 		}
 
-		public void aplicar(String texto) {
-			decidir(Optional.of(texto));
+		/** @param json {@code {texto, aceitas, recusadas}} */
+		public void aplicar(String json) {
+			try {
+				decidir(Optional.of(mapper.readValue(json, Decisao.class)));
+			} catch (JacksonException e) {
+				log.error("Decisão da prévia em formato inesperado", e);
+				decidir(Optional.empty());
+			}
 		}
 
 		public void cancelar() {
 			decidir(Optional.empty());
 		}
 
+		/** Botões de tom: a resposta volta por {@code window.mostrarTom}. */
+		public void tom(String nome) {
+			Function<String, CompletableFuture<ResultadoCorrecao>> pedir = tons;
+			CompletableFuture<Optional<Decisao>> previa = decisao;
+			if (pedir == null || previa == null) {
+				return;
+			}
+			pedir.apply(nome).whenComplete((resultado, erro) -> Platform.runLater(() -> {
+				if (decisao != previa) {
+					return;
+				}
+				Map<String, Object> dados = erro == null
+						? Map.of("tom", nome, "resultado", resultado)
+						: Map.of("tom", nome, "erro", mensagemDe(erro));
+				web.getEngine().executeScript("window.mostrarTom(" + mapper.writeValueAsString(dados) + ")");
+			}));
+		}
+
+	}
+
+	private static String mensagemDe(Throwable erro) {
+		Throwable causa = erro instanceof CompletionException && erro.getCause() != null ? erro.getCause() : erro;
+		return causa instanceof ClienteIa.FalhaIa ? causa.getMessage() : "Não foi possível ajustar o tom agora";
 	}
 
 }

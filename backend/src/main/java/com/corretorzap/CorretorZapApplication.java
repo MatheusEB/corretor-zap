@@ -16,6 +16,11 @@ public class CorretorZapApplication {
 	private static final String ENDERECO = "http://127.0.0.1:8765";
 
 	public static void main(String[] args) {
+		// o padrão (30 s) fecha a conexão com a IA entre um atalho e outro, e cada uso pagava o TLS de novo;
+		// precisa vir antes de qualquer HttpClient ser criado
+		if (System.getProperty("jdk.httpclient.keepalive.timeout") == null) {
+			System.setProperty("jdk.httpclient.keepalive.timeout", "600");
+		}
 		// já está aberto? só traz a janela da outra instância para a frente
 		boolean demonstracao = Arrays.asList(args).contains("--corretor.demo=true");
 		if (!demonstracao && pedirParaInstanciaAberta()) {
