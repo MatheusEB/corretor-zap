@@ -10,7 +10,7 @@
 ![LanguageTool](https://img.shields.io/badge/LanguageTool-pt--BR-1C1A17?style=for-the-badge&logoColor=FBFAF6)
 ![IA opcional](https://img.shields.io/badge/IA_opcional-Gemini_·_Ollama-1C1A17?style=for-the-badge&logo=googlegemini&logoColor=FBFAF6)
 <br>
-![Versão](https://img.shields.io/badge/versão-0.2.0-0F6E64?style=flat-square)
+![Versão](https://img.shields.io/badge/versão-0.3.0-0F6E64?style=flat-square)
 ![Testes](https://img.shields.io/badge/testes-100-0F6E64?style=flat-square)
 ![Licença](https://img.shields.io/badge/licença-MIT-0F6E64?style=flat-square)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-C8412B?style=flat-square&logo=windows)
@@ -40,7 +40,7 @@ se você quiser, uma IA (Gemini grátis ou Ollama local) revisa junto.
 |---|---|---|
 | ✍️ | **Escrever** | Você digita no WhatsApp normalmente, sem colar o texto em lugar nenhum. |
 | ⌨️ | **Atalho** | `Ctrl + Shift + Espaço` copia o texto da caixa em foco. A sua área de transferência é guardada e devolvida no fim. |
-| 🔍 | **Prévia** | Um cartão flutua por cima do WhatsApp com cada correção marcada (riscado → novo). Clique numa correção para desfazê-la. Com a [revisão por IA](#-revisão-por-ia-opcional) ligada, a etiqueta **IA** aparece no cartão. |
+| 🔍 | **Prévia** | Um cartão flutua por cima do WhatsApp com cada correção marcada (riscado → novo). Clique numa correção para desfazê-la. Ele aparece na hora com o corretor local; com a [revisão por IA](#-revisão-por-ia-opcional) ligada, a resposta dela atualiza o cartão quando chega, com a etiqueta **IA**. |
 | ✅ | **Aplicar** | `Enter` devolve o foco ao WhatsApp e troca o texto pela versão corrigida. `Esc` cancela sem mexer em nada. |
 
 <div align="center">
@@ -60,7 +60,7 @@ O [LanguageTool](https://languagetool.org) em português do Brasil, ajustado par
 Uma camada própria (`Pontuador`) põe vírgula depois de saudação e vocativo (`oi joao tudo bem` → `Oi, João, tudo bem?`), ponto final e interrogação. Cada tipo liga e desliga na página Atalho.
 
 ### 📖 Dicionário seu
-Gírias, apelidos e nomes que o corretor nunca deve mexer. Também dá para desligar uma regra direto pelo cartão da sugestão.
+Gírias, apelidos e nomes que o corretor nunca deve mexer. Também dá para desligar uma regra direto pelo cartão da sugestão. E ele aprende sozinho: a palavra que você desfaz 3 vezes na prévia entra no dicionário.
 
 </td>
 <td width="50%" valign="top">
@@ -139,8 +139,16 @@ O corretor local acerta ortografia e acentos, mas uma IA entende a frase inteira
 - **Só corrige.** Ela é instruída a manter gírias, abreviações (`vc`, `tb`, `blz`), risadas, emojis, nomes e quebras de linha, e a nunca mexer nas palavras do seu dicionário.
 - **Você decide cada troca.** A resposta vira correções separadas na prévia, como as do corretor local: clique numa para desfazer.
 - **Resposta estranha é descartada.** Se a IA reescrever a mensagem (ou responder a ela) em vez de corrigir, o app ignora e usa o corretor local.
-- **O atalho nunca para.** Sem internet, limite gratuito atingido, serviço sobrecarregado ou mais de 10 s de espera: o corretor local assume na hora.
+- **A prévia não espera a IA.** O cartão abre na hora com a correção local e a etiqueta **IA revisando**; quando a resposta chega (em geral 1 a 2 s), ele se atualiza sozinho. Se você já mexeu em alguma correção, ele não troca nada por baixo: só avisa que a versão da IA está pronta.
+- **O atalho nunca para.** Sem internet, limite gratuito atingido, serviço sobrecarregado ou mais de 10 s de espera: a prévia fica com a correção local e a etiqueta **Sem IA**.
 - **A chave fica só no seu PC** (`~/.corretor-zap/ia.json`), nunca volta para a tela e só viaja por `https://` (ou `http://localhost`, no caso do Ollama).
+
+### Mudar o tom
+
+Com a IA ligada, a prévia ganha três botões: **Formal**, **Curto** e **Gentil** (ou `Alt + 1`, `Alt + 2`, `Alt + 3`). Eles reescrevem a mensagem inteira no tom escolhido, e `Enter` aplica.
+
+> `bom dia gente vamos comecar a reuniao as 10 hrs se der certo eu te aviso`
+> → **Formal:** Bom dia a todos. Daremos início à reunião às 10h. Assim que possível, confirmarei com vocês.
 
 > [!IMPORTANT]
 > A IA vem **desligada**. O editor do Início continua usando só o corretor local, para não gastar o limite a cada tecla.
@@ -232,20 +240,25 @@ cd backend
 ./mvnw test
 ```
 
-São **100 testes** (JUnit 5): correção, escolha de sugestões, pontuação (33 casos de mensagens reais), revisão por IA (com um servidor falso), API, atalho, dicionário, concorrência e o filtro de segurança.
+São **129 testes** (JUnit 5): correção, escolha de sugestões, pontuação (33 casos de mensagens reais), revisão por IA (com um servidor falso lento, fora do ar e com 300 pedidos ao mesmo tempo), prévia em duas etapas, tons, dicionário que aprende, API, atalho, concorrência e o filtro de segurança.
 
 Com o app aberto, os testes de `testes-carga/` medem o resto:
 
 ```bash
 node testes-carga/pontuacao.mjs    # bateria de mensagens de chat → como o corretor devolve
 node testes-carga/estresse.mjs     # 200 usuários simultâneos, textos de 20 mil caracteres
+python testes-carga/previa-navegador.py   # o cartão de prévia num navegador de verdade (Playwright + Edge)
+powershell -ExecutionPolicy Bypass -File testes-carga/atalho-e2e.ps1   # o atalho de ponta a ponta numa janela de teste
 ```
+
+`LatenciaBenchmark` e `LatenciaGeminiBenchmark` (em `backend/src/test`) medem o corretor local e o Gemini de verdade; ficam fora da suíte porque o segundo gasta a cota da sua chave.
 
 ## Privacidade
 
 - A correção roda **no seu computador**. Nenhum texto vai para servidor nenhum, a não ser que você ligue a [revisão por IA](#-revisão-por-ia-opcional): aí o texto de cada mensagem corrigida pelo atalho vai para o serviço escolhido (no Gemini gratuito, o Google pode usá-lo para melhorar os produtos dele). Com o Ollama, continua tudo no seu PC.
 - A chave da IA fica só em `~/.corretor-zap/ia.json`: o painel nunca a mostra de volta.
 - O painel só responde para `127.0.0.1`: ninguém na sua rede Wi-Fi, nem um site aberto no navegador, consegue ler o histórico.
+- O log em `~/.corretor-zap/logs` guarda só quanto tempo cada etapa levou, nunca o texto das mensagens.
 - O corretor não lê as suas conversas. Ele só vê o texto da caixa de mensagem quando você aperta o atalho.
 
 ## Licença

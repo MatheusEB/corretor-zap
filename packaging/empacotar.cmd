@@ -21,7 +21,7 @@ mkdir dist\entrada
 copy /y backend\target\corretor-zap-0.0.1-SNAPSHOT.jar dist\entrada\corretor-zap.jar >nul
 jpackage --type app-image ^
   --name "Corretor Zap" ^
-  --app-version 0.2.0 ^
+  --app-version 0.3.0 ^
   --vendor "Corretor Zap" ^
   --description "Correcao ortografica com um atalho, direto no WhatsApp" ^
   --icon packaging\icone.ico ^
