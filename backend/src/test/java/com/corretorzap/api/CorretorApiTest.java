@@ -35,6 +35,17 @@ class CorretorApiTest {
 	}
 
 	@Test
+	void atualizacaoFicaDesligadaForaDoAppEmpacotado() throws Exception {
+		HttpResponse<String> estado = enviar("GET", "/api/atualizacao", null);
+
+		assertThat(estado.statusCode()).isEqualTo(200);
+		assertThat(estado.body()).contains("\"fase\":\"INDISPONIVEL\"");
+		assertThat(enviar("POST", "/api/atualizacao/verificar", null).body()).contains("INDISPONIVEL");
+		assertThat(enviar("POST", "/api/atualizacao/instalar", null).statusCode()).isEqualTo(409);
+		assertThat(enviar("GET", "/api/config", null).body()).contains("\"atualizacoes\":true");
+	}
+
+	@Test
 	void corrigeTexto() throws Exception {
 		HttpResponse<String> resposta = enviar("POST", "/api/corrigir", "{\"texto\":\"voce nao sabe\"}");
 

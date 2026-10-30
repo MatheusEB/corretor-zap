@@ -10,7 +10,7 @@
 ![LanguageTool](https://img.shields.io/badge/LanguageTool-pt--BR-1C1A17?style=for-the-badge&logoColor=FBFAF6)
 ![IA opcional](https://img.shields.io/badge/IA_opcional-Gemini_·_Ollama-1C1A17?style=for-the-badge&logo=googlegemini&logoColor=FBFAF6)
 <br>
-![Versão](https://img.shields.io/badge/versão-0.3.0-0F6E64?style=flat-square)
+![Versão](https://img.shields.io/badge/versão-0.4.0-0F6E64?style=flat-square)
 ![Testes](https://img.shields.io/badge/testes-100-0F6E64?style=flat-square)
 ![Licença](https://img.shields.io/badge/licença-MIT-0F6E64?style=flat-square)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-C8412B?style=flat-square&logo=windows)
@@ -66,7 +66,7 @@ Gírias, apelidos e nomes que o corretor nunca deve mexer. Também dá para desl
 <td width="50%" valign="top">
 
 ### 🖥️ App de mesa de verdade
-Janela própria com o painel em React, ícone na bandeja (Abrir, Pausar, Sair) e **Iniciar com o Windows**. Fechar a janela só esconde; o corretor continua ativo.
+Janela própria com o painel em React, ícone na bandeja (Abrir, Pausar, Sair) e **Iniciar com o Windows**. Fechar a janela só esconde; o corretor continua ativo. Quando sai versão nova, um aviso aparece e **um clique atualiza**: o app baixa, confere, troca a pasta e abre de novo.
 
 ### 🌗 Folha de Revisão
 O visual imita uma folha corrigida à caneta: sublinhado ondulado ao vivo, marcações numeradas na margem, teclas 3D que afundam com as de verdade. Tema claro e escuro, sem gradiente nem brilho.
@@ -184,6 +184,7 @@ corretor-zap/
 │   └── src/main/java/com/corretorzap/
 │       ├── api/             endpoints do painel
 │       ├── atalho/          atalho global e leitura/escrita da caixa em foco
+│       ├── atualizacao/     atualização automática pelas releases do GitHub
 │       ├── config/          configuração, dicionário e regras
 │       ├── correcao/        LanguageTool, Ranqueador, Pontuador e histórico
 │       ├── demo/            dados de demonstração
@@ -207,6 +208,12 @@ corretor-zap/
 
 1. Baixe o **`CorretorZap-windows.zip`** na [última versão](https://github.com/MatheusEB/corretor-zap/releases/latest).
 2. Extraia a pasta onde quiser e abra **`Corretor Zap.exe`**. O Java já vem dentro.
+
+### Atualizar
+
+A partir da versão 0.4.0 o app se atualiza sozinho. Quando sai versão nova, aparecem um aviso na bandeja e um cartão na barra lateral: clique em **Atualizar**. O app baixa o ZIP da release, confere o SHA-256 que o GitHub publica, fecha, troca a pasta pela nova e abre de novo (uns 20 segundos no total). Atalho, dicionário, histórico e a chave da IA ficam em `~/.corretor-zap` e não são tocados. Se algo der errado no meio, a versão antiga continua no lugar.
+
+Quem está na 0.3.0 ou antes precisa baixar o ZIP à mão uma última vez. Para publicar uma versão nova: rode `packaging\empacotar.cmd` e crie a release no GitHub com o `CorretorZap-windows.zip` anexado e a tag `vX.Y.Z` maior que a anterior.
 
 > [!NOTE]
 > O executável não tem assinatura digital, então o Windows pode mostrar "O Windows protegeu o computador". Clique em **Mais informações** e depois em **Executar assim mesmo**.
@@ -240,7 +247,7 @@ cd backend
 ./mvnw test
 ```
 
-São **129 testes** (JUnit 5): correção, escolha de sugestões, pontuação (33 casos de mensagens reais), revisão por IA (com um servidor falso lento, fora do ar e com 300 pedidos ao mesmo tempo), prévia em duas etapas, tons, dicionário que aprende, API, atalho, concorrência e o filtro de segurança.
+São **156 testes** (JUnit 5): correção, escolha de sugestões, pontuação (33 casos de mensagens reais), revisão por IA (com um servidor falso lento, fora do ar e com 300 pedidos ao mesmo tempo), prévia em duas etapas, tons, dicionário que aprende, atualização automática (com um GitHub falso, download adulterado, ZIP malicioso e o script de troca rodando no PowerShell de verdade), API, atalho, concorrência e o filtro de segurança.
 
 Com o app aberto, os testes de `testes-carga/` medem o resto:
 
@@ -249,6 +256,7 @@ node testes-carga/pontuacao.mjs    # bateria de mensagens de chat → como o cor
 node testes-carga/estresse.mjs     # 200 usuários simultâneos, textos de 20 mil caracteres
 python testes-carga/previa-navegador.py   # o cartão de prévia num navegador de verdade (Playwright + Edge)
 powershell -ExecutionPolicy Bypass -File testes-carga/atalho-e2e.ps1   # o atalho de ponta a ponta numa janela de teste
+python testes-carga/atualizacao-e2e.py <pasta>   # atualiza um app 0.4.0 para 0.4.1 de verdade (veja o topo do arquivo)
 ```
 
 `LatenciaBenchmark` e `LatenciaGeminiBenchmark` (em `backend/src/test`) medem o corretor local e o Gemini de verdade; ficam fora da suíte porque o segundo gasta a cota da sua chave.
@@ -259,6 +267,7 @@ powershell -ExecutionPolicy Bypass -File testes-carga/atalho-e2e.ps1   # o atalh
 - A chave da IA fica só em `~/.corretor-zap/ia.json`: o painel nunca a mostra de volta.
 - O painel só responde para `127.0.0.1`: ninguém na sua rede Wi-Fi, nem um site aberto no navegador, consegue ler o histórico.
 - O log em `~/.corretor-zap/logs` guarda só quanto tempo cada etapa levou, nunca o texto das mensagens.
+- A cada 6 horas o app pergunta ao GitHub (`api.github.com`) qual é a última versão. Só isso: nenhum texto, configuração ou dado seu vai junto. Dá para desligar em **Atalho → Atualizar sozinho**.
 - O corretor não lê as suas conversas. Ele só vê o texto da caixa de mensagem quando você aperta o atalho.
 
 ## Licença

@@ -27,6 +27,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
+import com.corretorzap.atualizacao.AtualizacaoService.VersaoDisponivel;
 import com.corretorzap.config.Configuracao;
 import com.corretorzap.config.ConfiguracaoService;
 import com.corretorzap.correcao.ResultadoCorrecao;
@@ -62,6 +63,7 @@ public class AppDesktop {
 	private volatile boolean barraEscura = Windows.temaEscuro();
 	private TrayIcon iconeBandeja;
 	private MenuItem itemPausar;
+	private MenuItem itemAtualizar;
 
 	public AppDesktop(ApplicationContext contexto, ConfiguracaoService configuracao, ObjectMapper mapper,
 			@Value("${corretor.config-dir}") Path pastaDados,
@@ -135,6 +137,18 @@ public class AppDesktop {
 		});
 	}
 
+	/** Versão nova no GitHub: avisa pela bandeja e põe "Atualizar" no menu (o botão de verdade fica no painel). */
+	@EventListener
+	public void versaoDisponivel(VersaoDisponivel evento) {
+		if (iconeBandeja == null) {
+			return;
+		}
+		itemAtualizar.setLabel("Atualizar para a versão " + evento.versao());
+		itemAtualizar.setEnabled(true);
+		iconeBandeja.displayMessage(TITULO, "Versão " + evento.versao() + " disponível. Abra o app para atualizar.",
+				TrayIcon.MessageType.INFO);
+	}
+
 	public void barraDeTitulo(boolean escura) {
 		this.barraEscura = escura;
 		Platform.runLater(() -> Windows.barraDeTituloEscura(TITULO, escura));
@@ -183,10 +197,14 @@ public class AppDesktop {
 		abrir.addActionListener(e -> mostrar());
 		itemPausar = new MenuItem(textoPausar());
 		itemPausar.addActionListener(e -> alternarPausa());
+		itemAtualizar = new MenuItem("Sem atualizações");
+		itemAtualizar.setEnabled(false);
+		itemAtualizar.addActionListener(e -> mostrar());
 		MenuItem sair = new MenuItem("Sair");
 		sair.addActionListener(e -> sair());
 		menu.add(abrir);
 		menu.add(itemPausar);
+		menu.add(itemAtualizar);
 		menu.addSeparator();
 		menu.add(sair);
 

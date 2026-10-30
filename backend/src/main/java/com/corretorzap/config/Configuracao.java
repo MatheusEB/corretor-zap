@@ -17,6 +17,7 @@ import jakarta.validation.constraints.Size;
  * @param dicionario        palavras que nunca devem ser corrigidas (gírias, nomes...)
  * @param regrasDesativadas ids de regras do LanguageTool que não devem ser aplicadas
  * @param previa            true = o atalho mostra a prévia antes de trocar o texto; false = corrige direto
+ * @param atualizacoes      true = procura versão nova no GitHub de tempos em tempos
  */
 public record Configuracao(
 		boolean ativo,
@@ -24,7 +25,8 @@ public record Configuracao(
 		boolean selecionarTudo,
 		@Size(max = Configuracao.MAXIMO_PALAVRAS) SortedSet<@Size(max = 100) String> dicionario,
 		@Size(max = 1000) SortedSet<@Size(max = 100) String> regrasDesativadas,
-		Boolean previa) {
+		Boolean previa,
+		Boolean atualizacoes) {
 
 	public static final String ATALHO_PADRAO = "CTRL+SHIFT+SPACE";
 	public static final int MAXIMO_PALAVRAS = 5000;
@@ -34,22 +36,23 @@ public record Configuracao(
 		regrasDesativadas = ordenado(regrasDesativadas, false);
 		// configs salvas antes da prévia existir não têm o campo
 		previa = previa == null || previa;
+		atualizacoes = atualizacoes == null || atualizacoes;
 	}
 
 	public static Configuracao padrao() {
-		return new Configuracao(true, ATALHO_PADRAO, true, null, null, true);
+		return new Configuracao(true, ATALHO_PADRAO, true, null, null, true, true);
 	}
 
 	public Configuracao comAtivo(boolean novoAtivo) {
-		return new Configuracao(novoAtivo, atalho, selecionarTudo, dicionario, regrasDesativadas, previa);
+		return new Configuracao(novoAtivo, atalho, selecionarTudo, dicionario, regrasDesativadas, previa, atualizacoes);
 	}
 
 	public Configuracao comDicionario(SortedSet<String> novoDicionario) {
-		return new Configuracao(ativo, atalho, selecionarTudo, novoDicionario, regrasDesativadas, previa);
+		return new Configuracao(ativo, atalho, selecionarTudo, novoDicionario, regrasDesativadas, previa, atualizacoes);
 	}
 
 	public Configuracao comRegrasDesativadas(SortedSet<String> novasRegras) {
-		return new Configuracao(ativo, atalho, selecionarTudo, dicionario, novasRegras, previa);
+		return new Configuracao(ativo, atalho, selecionarTudo, dicionario, novasRegras, previa, atualizacoes);
 	}
 
 	public boolean estaNoDicionario(String palavra) {

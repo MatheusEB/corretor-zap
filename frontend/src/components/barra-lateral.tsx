@@ -1,12 +1,14 @@
 import { motion } from 'motion/react'
 import { MonitorIcon, MoonIcon, SunIcon } from 'lucide-react'
 
+import { AvisoAtualizacao } from '@/components/aviso-atualizacao'
 import { Logo } from '@/components/logo'
 import { Tecla } from '@/components/tecla'
 import { Switch } from '@/components/ui/switch'
 import type { Configuracao, Status } from '@/lib/api'
 import { teclasDoAtalho } from '@/lib/atalho'
 import { definirTema, usarTema, type PreferenciaTema } from '@/lib/tema'
+import { usarAtualizacao } from '@/lib/usar-atualizacao'
 import { cn } from '@/lib/utils'
 
 export type Pagina = 'inicio' | 'atalho' | 'dicionario' | 'historico' | 'ia'
@@ -35,6 +37,7 @@ type Props = {
 
 export function BarraLateral({ atual, irPara, config, status, alternarAtivo }: Props) {
   const tema = usarTema()
+  const { estado: atualizacao, setEstado: setAtualizacao } = usarAtualizacao()
   const ouvindo = config.ativo && status?.atalhoRegistrado === true
 
   return (
@@ -79,6 +82,7 @@ export function BarraLateral({ atual, irPara, config, status, alternarAtivo }: P
       </nav>
 
       <div className="mt-auto flex flex-col gap-4 px-5 pb-5">
+        <AvisoAtualizacao estado={atualizacao} setEstado={setAtualizacao} />
         <div className="rounded-lg border border-linha bg-folha p-3.5">
           <div className="flex items-center justify-between gap-2">
             <p className="flex items-center gap-2 text-sm font-medium">
@@ -123,7 +127,11 @@ export function BarraLateral({ atual, irPara, config, status, alternarAtivo }: P
               </button>
             ))}
           </div>
-          <span className="font-mono text-[10px] text-apagado">v0.2</span>
+          {atualizacao?.atual ? (
+            <span className="font-mono text-[10px] text-apagado" data-testid="versao-app">
+              v{atualizacao.atual}
+            </span>
+          ) : null}
         </div>
       </div>
     </aside>

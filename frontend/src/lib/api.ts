@@ -5,6 +5,8 @@ export type Configuracao = {
   dicionario: string[]
   regrasDesativadas: string[]
   previa: boolean
+  /** procura versão nova no GitHub de tempos em tempos */
+  atualizacoes: boolean
 }
 
 export type Correcao = {
@@ -30,6 +32,20 @@ export type RegistroHistorico = ResultadoCorrecao & { quando: string }
 export type Status = { atalhoRegistrado: boolean }
 
 export type Sistema = { instalado: boolean; iniciarComWindows: boolean }
+
+export type FaseAtualizacao = 'INDISPONIVEL' | 'ATUALIZADO' | 'DISPONIVEL' | 'BAIXANDO' | 'INSTALANDO' | 'ERRO'
+
+export type EstadoAtualizacao = {
+  /** null rodando do código-fonte */
+  atual: string | null
+  fase: FaseAtualizacao
+  nova: string | null
+  novidades: string | null
+  pagina: string | null
+  progresso: number
+  erro: string | null
+  acabouDeAtualizar: boolean
+}
 
 export type ConfiguracaoIa = { ativo: boolean; provedor: string; url: string; modelo: string; chaveDefinida: boolean }
 
@@ -69,6 +85,10 @@ export const api = {
   ia: () => chamar<ConfiguracaoIa>('GET', '/ia'),
   salvarIa: (pedido: PedidoIa) => chamar<ConfiguracaoIa>('PUT', '/ia', pedido),
   testarIa: (texto: string) => chamar<ResultadoTesteIa>('POST', '/ia/testar', { texto }),
+  atualizacao: () => chamar<EstadoAtualizacao>('GET', '/atualizacao'),
+  procurarAtualizacao: () => chamar<EstadoAtualizacao>('POST', '/atualizacao/verificar'),
+  instalarAtualizacao: () => chamar<EstadoAtualizacao>('POST', '/atualizacao/instalar'),
+  avisoDeAtualizacaoVisto: () => chamar<null>('POST', '/atualizacao/aviso-visto'),
 }
 
 /** Aplica uma alteração na config; devolve false (e avisa o usuário) se o servidor recusar. */

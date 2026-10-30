@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { api, type Atualizar, type Configuracao, type Sistema } from '@/lib/api'
 import { atalhoDoEvento, teclasDoAtalho } from '@/lib/atalho'
+import { usarAtualizacao } from '@/lib/usar-atualizacao'
 import { cn } from '@/lib/utils'
 
 type Props = { config: Configuracao; atualizar: Atualizar }
@@ -23,6 +24,8 @@ export function PaginaAtalho({ config, atualizar }: Props) {
   const [gravando, setGravando] = useState(false)
   const apertadas = usarTeclasApertadas()
   const [sistema, setSistema] = useState<Sistema | null>(null)
+  const { estado: atualizacao, setEstado: setAtualizacao } = usarAtualizacao()
+  const [procurando, setProcurando] = useState(false)
 
   useEffect(() => {
     api.sistema().then(setSistema).catch(() => {})
@@ -146,6 +149,51 @@ export function PaginaAtalho({ config, atualizar }: Props) {
             aria-label="Iniciar com o Windows"
           />
         </Linha>
+
+        <Linha
+          titulo="Atualizar sozinho"
+          descricao={
+            !atualizacao || atualizacao.fase === 'INDISPONIVEL'
+              ? 'Disponível na versão instalada do app.'
+              : 'Avisa quando sair versão nova; um clique instala e abre o app de novo.'
+          }
+        >
+          <Switch
+            checked={config.atualizacoes}
+            disabled={!atualizacao || atualizacao.fase === 'INDISPONIVEL'}
+            onCheckedChange={(atualizacoes) => salvar({ atualizacoes })}
+            aria-label="Atualizar sozinho"
+          />
+        </Linha>
+
+        {atualizacao && atualizacao.fase !== 'INDISPONIVEL' ? (
+          <div className="flex items-center justify-between gap-6 border-b border-linha pb-5">
+            <div>
+              <p className="font-medium">Versão {atualizacao.atual}</p>
+              <p className="mt-0.5 text-sm text-apagado" data-testid="situacao-atualizacao">
+                {atualizacao.fase === 'ATUALIZADO'
+                  ? 'Você está na versão mais recente.'
+                  : atualizacao.fase === 'ERRO'
+                    ? atualizacao.erro
+                    : `Versão ${atualizacao.nova} disponível. Instale pelo aviso na barra lateral.`}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              disabled={procurando || atualizacao.fase === 'BAIXANDO' || atualizacao.fase === 'INSTALANDO'}
+              onClick={() => {
+                setProcurando(true)
+                api
+                  .procurarAtualizacao()
+                  .then(setAtualizacao)
+                  .catch(() => {})
+                  .finally(() => setProcurando(false))
+              }}
+            >
+              {procurando ? 'Procurando…' : 'Procurar agora'}
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       <section aria-labelledby="titulo-modo" className="flex flex-col gap-4">
